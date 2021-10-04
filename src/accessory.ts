@@ -41,9 +41,11 @@ class MetaLight implements AccessoryPlugin {
 
     this.log = log;
     this.name = config.name;
-
+    
     const getAverage: (() => Promise<number>) = async () => {
+      log.debug('getAverage: begin fetching all lights');
       let allLights: any[] = await this.hue.lights.getAll();
+      log.debug('getAverage: finished fetching');
       let brightness: number[] = 
         allLights
           .filter(light => light.state.on)
@@ -55,12 +57,24 @@ class MetaLight implements AccessoryPlugin {
     };
 
     const setStates: ((newState: any) => Promise<any>) = async (newState: any) => {
+      log.debug('setStates: begin fetching all lights');
       let allLights: any[] = await this.hue.lights.getAll();
-      await Promise.all(
-        allLights
-          .filter(light => light.state.on)
-          .map(light => this.hue.lights.setLightState(light, newState))
-      );
+      log.debug('setStates: finished fetching, setting states');
+      if (!this.lock) {
+        this.lock = true;
+        try {
+          await Promise.all(
+            allLights
+              .filter(light => light.state.on)
+              .map(light => this.hue.lights.setLightState(light, newState))
+          );
+        } finally {
+          this.lock = false;
+        }
+        log.debug('setStates: finished setting');
+      } else {
+        log.warn('setStates: lock already held, ignoring set');
+      }
     };
 
     this.lightbulbService = new hap.Service.Lightbulb(this.name);
