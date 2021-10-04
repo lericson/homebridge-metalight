@@ -89,7 +89,9 @@ class MetaLight implements AccessoryPlugin {
           // Ignore turning on.
           callback();
         } else {
-          setStates({on: false}).then(() => callback());
+          setStates({on: false})
+            .then(() => callback())
+            .catch((err: any) => callback(err, undefined));
         }
       });
 
@@ -99,21 +101,10 @@ class MetaLight implements AccessoryPlugin {
           .then((brightness: number) => callback(undefined, brightness/254*100))
           .catch((err: any) => callback(err, undefined)))
       .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        callback();
-        if (!this.lock) {
-          this.lock = true;
-          setStates({bri: (value as number) / 100 * 254})
-            .finally(() => { this.lock = false });
-        }
-        /*
-          .then((promises: Promise<any>[]) =>
-            Promise.all(promises)
-              .then(() => )
-              .catch((err: any) => callback(err, undefined)))
-        */
+        callback(undefined, undefined);
+        setStates({bri: (value as number) / 100 * 254})
+          .catch((err: Error) => log.error(`${err.name}: ${err.message}`));
       });
-
-    //this.lightbulbService.getCharacteristic(hap.Characteristic.On)
 
     this.informationService = new hap.Service.AccessoryInformation()
       .setCharacteristic(hap.Characteristic.Manufacturer, "MetaMan")
