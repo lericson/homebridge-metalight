@@ -43,12 +43,12 @@ class MetaLight implements AccessoryPlugin {
     this.log = log;
     this.name = config.name;
     
-    const delay: ((ms: number) => Promise<null>) = async (ms) =>
+    const delay = async (ms: number) =>
       new Promise<null>((resolve, reject) => {
         setTimeout(resolve, ms);
       });
     
-    const getAllLights: (() => Promise<any[]>) = async () => {
+    const getAllLights = async () => {
       if (this.getLightsOp) {
         log.debug('getAllLights: already in-progress, awaiting');
         return await this.getLightsOp;
@@ -67,19 +67,17 @@ class MetaLight implements AccessoryPlugin {
       }
     };
     
-    const getAverage: (() => Promise<number>) = async () => {
-      let allLights: any[] = await getAllLights();
-      let brightness: number[] = allLights
-        .filter(light => light.state.on && light.state.bri > 1)
-        .map(light => light.state.bri);
-      if (brightness.length == 0) {
+    const getAverageBrightness = async () => {
+      let brights = (await getAllLights())
+        .map(light => (light.state.on ? light.state.bri : 0) as number)
+        .filter(bri => bri > 1);
+      if (!brights) {
         return 0;
       }
-      log.debug(`brightnesses: ${brightness.join(", ")}`);
-      return brightness.reduce(((sum, b) => sum + b), 0) / brightness.length;
+      return brights.reduce(((a, b) => a + b), 0) / brights.length;
     };
 
-    const setStates: ((newState: any) => Promise<any>) = async (newState: any) => {
+    const setStates = async (newState: any) => {
       log.debug('setStates: begin fetching all lights');
       let allLights: any[] = await getAllLights();
       log.debug('setStates: finished fetching, setting states');
@@ -115,8 +113,8 @@ class MetaLight implements AccessoryPlugin {
     this.lightbulbService.getCharacteristic(hap.Characteristic.On)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
         log.debug('get on characteristic');
-        getAverage()
-          .then((average: number) => callback(undefined, average > 0))
+        getAllLights()
+          .then((lights: any[]) => callback(undefined, lights.some(light => light.state.on)))
           .catch((err: Error) => {
             log.error(`Get ON error, ${err.name}: ${err.message}`);
             callback(err, undefined);
@@ -136,7 +134,7 @@ class MetaLight implements AccessoryPlugin {
     this.lightbulbService.getCharacteristic(hap.Characteristic.Brightness)
       .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
         log.debug('get brightness characteristic');
-        getAverage()
+        getAverageBrightness()
           .then((brightness: number) => callback(undefined, brightness/254*100))
           .catch((err: Error) => {
             log.error(`Get Brightness error, ${err.name}: ${err.message}`);
