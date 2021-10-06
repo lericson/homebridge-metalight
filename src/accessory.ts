@@ -89,7 +89,7 @@ class MetaLight implements AccessoryPlugin {
               .filter(light => light.state.on && ((newState.on === false) || light.state.bri > 1))
               .map(async (light, i) => {
                 if (i > 2) {
-                  await delay((i-2)*200);
+                  await delay((i-2)*100);
                 }
                 log.debug(`setStates: updating #${light.id} ${light.name} state`);
                 try {
